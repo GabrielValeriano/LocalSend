@@ -7,10 +7,12 @@ export const CANALES = {
   responderOferta: 'responder-oferta',
   elegirCarpeta: 'elegir-carpeta',
   cambiarAlias: 'cambiar-alias',
+  agregarIp: 'agregar-ip',
 
   // main -> vista (eventos)
   dispositivosActualizados: 'dispositivos-actualizados',
   progresoActualizado: 'progreso-actualizado',
   ofertaEntrante: 'oferta-entrante',
+  ofertaResuelta: 'oferta-resuelta',
   estadoServidor: 'estado-servidor'
 } as const

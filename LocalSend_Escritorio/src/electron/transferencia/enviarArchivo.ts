@@ -5,7 +5,7 @@ import type { ArchivoDeLote, Dispositivo, OfertaLote, ProgresoTransferencia, Rem
 import { LectorDeSobres, armarMensajeChunk, armarMensajeJson } from '../../compartido/protocolo'
 import { generarId } from '../../compartido/alias'
 import { tipoMimePorNombre } from '../../compartido/tiposMime'
-import { TAMANO_CHUNK, TIEMPO_ESPERA_RESPUESTA_MS } from '../config/constantes'
+import { TAMANO_CHUNK, TIEMPO_ESPERA_RESPUESTA_MS, TIEMPO_INACTIVIDAD_MS } from '../config/constantes'
 import { MedidorProgreso } from './progreso'
 
 interface DatosEnvio {
@@ -41,6 +41,9 @@ export async function enviarLote({ rutas, destino, remitente, alProgreso }: Dato
     // HANDSHAKE: el envío se detiene acá hasta que el receptor acepte o rechace.
     const respuesta = await esperarRespuesta(socket)
     const aceptados = new Set(respuesta.idsAceptados)
+
+    // Desde acá los datos tienen que fluir: si pasan 10 s sin actividad, la conexión se cortó
+    vigilarInactividad(socket)
 
     for (const archivo of archivos) {
       if (!aceptados.has(archivo.id)) {
@@ -142,4 +145,12 @@ async function enviarPorChunks(socket: net.Socket, ruta: string, medidor: Medido
     socket.off('close', alCerrar)
     lectura.destroy()
   }
+}
+
+// Si el socket pasa TIEMPO_INACTIVIDAD_MS sin enviar ni recibir nada, lo cerramos.
+// Eso dispara 'close' y la transferencia termina en error (en vez de quedar congelada).
+function vigilarInactividad(socket: net.Socket): void {
+  socket.setTimeout(TIEMPO_INACTIVIDAD_MS)
+  socket.on('error', () => {}) // el error ya se maneja por 'close'; esto evita que Node lo tome como error sin atender
+  socket.once('timeout', () => socket.destroy(new Error('Se perdió la conexión con el otro dispositivo')))
 }

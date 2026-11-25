@@ -1,34 +1,14 @@
-# localsend-escritorio
+# LocalSend · Escritorio
 
-An Electron application with React and TypeScript
+Las instrucciones completas están en el [README principal](../README.md#1-app-de-escritorio-localsend_escritorio).
 
-## Recommended IDE Setup
-
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
-
-## Project Setup
-
-### Install
+Resumen rápido:
 
 ```bash
-$ npm install
+bun install            # dependencias
+bun run dev            # abrir en modo desarrollo
+bun run build:linux    # instalador .AppImage en binarios/
+bun run build:win      # instalador .exe (desde Windows)
 ```
 
-### Development
-
-```bash
-$ npm run dev
-```
-
-### Build
-
-```bash
-# For windows
-$ npm run build:win
-
-# For macOS
-$ npm run build:mac
-
-# For Linux
-$ npm run build:linux
-```
+Puertos: UDP 53317 (descubrimiento) y TCP 53318 (transferencia). Permitilos en el firewall.

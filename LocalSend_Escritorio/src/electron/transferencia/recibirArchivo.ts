@@ -4,6 +4,7 @@ import type { AccionConflicto, ArchivoDeLote, OfertaLote, ProgresoTransferencia 
 import { LectorDeSobres, armarMensajeJson, type MensajeControl } from '../../compartido/protocolo'
 import { resolverConflicto, rutaDestinoSegura, yaExiste } from '../archivos/resolverConflicto'
 import { MedidorProgreso } from './progreso'
+import { TIEMPO_INACTIVIDAD_MS } from '../config/constantes'
 
 export interface DecisionUsuario {
   idsAceptados: string[] // vacío = rechazar todo
@@ -129,6 +130,11 @@ export function atenderConexion(socket: net.Socket, opciones: OpcionesRecepcion)
     if (!oferta) return
     const motivo = idsAceptados.length === 0 ? 'Rechazado por el usuario' : undefined
     socket.write(armarMensajeJson({ tipo: 'respuesta', datos: { idLote: oferta.idLote, idsAceptados, motivo } }))
+    // Aceptado: desde acá tienen que llegar datos. Si pasan 10 s sin nada, la conexión se cortó.
+    if (idsAceptados.length > 0) {
+      socket.setTimeout(TIEMPO_INACTIVIDAD_MS)
+      socket.once('timeout', () => socket.destroy(new Error('Se perdió la conexión con el otro dispositivo')))
+    }
     if (idsAceptados.length === 0) {
       loteTerminado = true
       socket.end()

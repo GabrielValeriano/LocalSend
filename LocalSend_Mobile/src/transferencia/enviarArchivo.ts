@@ -4,7 +4,7 @@ import { Buffer } from 'buffer'
 import type { Dispositivo, OfertaLote, ProgresoTransferencia, Remitente, RespuestaLote } from '../compartido/tipos'
 import { LectorDeSobres, armarMensajeChunk, armarMensajeJson } from '../compartido/protocolo'
 import { generarId } from '../compartido/alias'
-import { TAMANO_CHUNK, TIEMPO_ESPERA_RESPUESTA_MS } from '../config/constantes'
+import { TAMANO_CHUNK, TIEMPO_ESPERA_RESPUESTA_MS, TIEMPO_INACTIVIDAD_MS } from '../config/constantes'
 import { MedidorProgreso } from './progreso'
 
 type Socket = ReturnType<typeof TcpSocket.createConnection>
@@ -29,14 +29,24 @@ interface DatosEnvio {
 export async function enviarLote({ archivos, destino, remitente, alProgreso }: DatosEnvio): Promise<Set<string>> {
   const idLote = generarId()
   const completados = new Set<string>()
-  const conId = archivos.map((archivo) => {
+  // El peso se mide de nuevo justo antes de enviar, leyendo el archivo real.
+  // Así un archivo que quedó seleccionado de antes nunca viaja anunciado como "0 B".
+  const preparados = archivos.map((archivo) => {
     const id = generarId()
+    const tamano = pesoActual(archivo.uri)
     const medidor = new MedidorProgreso(
-      { idTransferencia: id, idLote, nombre: archivo.nombre, direccion: 'envio', tamanoTotal: archivo.tamano },
+      { idTransferencia: id, idLote, nombre: archivo.nombre, direccion: 'envio', tamanoTotal: tamano ?? 0 },
       (progreso) => alProgreso(archivo.uri, progreso)
     )
-    return { ...archivo, id, medidor }
+    return { ...archivo, tamano: tamano ?? 0, id, medidor, disponible: tamano !== null }
   })
+
+  // Si un archivo ya no existe (por ejemplo, se borró de la caché), avisamos y no lo ofrecemos
+  preparados
+    .filter((a) => !a.disponible)
+    .forEach((a) => a.medidor.terminar('error', 'El archivo ya no está disponible. Volvé a elegirlo.'))
+  const conId = preparados.filter((a) => a.disponible)
+  if (conId.length === 0) return completados
 
   const oferta: OfertaLote = {
     idLote,
@@ -53,6 +63,11 @@ export async function enviarLote({ archivos, destino, remitente, alProgreso }: D
     // HANDSHAKE: no mandamos ni un byte hasta que el otro acepte.
     const respuesta = await esperarRespuesta(socket)
     const aceptados = new Set(respuesta.idsAceptados)
+
+    // Desde acá los datos tienen que fluir: si pasan 10 s sin actividad, la conexión se cortó
+    const conexion = socket
+    conexion.setTimeout(TIEMPO_INACTIVIDAD_MS)
+    conexion.once('timeout', () => conexion.destroy())
 
     for (const archivo of conId) {
       if (!aceptados.has(archivo.id)) {
@@ -144,4 +159,14 @@ function esperarDrain(socket: Socket): Promise<void> {
       resolve()
     })
   })
+}
+
+// Peso real del archivo en bytes, o null si ya no existe
+function pesoActual(uri: string): number | null {
+  try {
+    const archivo = new File(uri)
+    return archivo.exists ? archivo.size ?? 0 : null
+  } catch {
+    return null
+  }
 }

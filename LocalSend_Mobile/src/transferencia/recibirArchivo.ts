@@ -7,6 +7,7 @@ import { tipoMimeFinal } from '../compartido/tiposMime'
 import { crearArchivoEnCarpeta } from '../services/carpetaRecibidos'
 import { MedidorProgreso } from './progreso'
 import { EscritorPorPartes } from './escritorPorPartes'
+import { TIEMPO_INACTIVIDAD_MS } from '../config/constantes'
 
 type Socket = ReturnType<typeof TcpSocket.createConnection>
 
@@ -126,6 +127,11 @@ export function atenderConexion(socket: Socket, opciones: OpcionesRecepcion): vo
     if (!oferta) return
     const motivo = idsAceptados.length === 0 ? 'Rechazado por el usuario' : undefined
     socket.write(armarMensajeJson({ tipo: 'respuesta', datos: { idLote: oferta.idLote, idsAceptados, motivo } }))
+    // Aceptado: desde acá tienen que llegar datos. Si pasan 10 s sin nada, la conexión se cortó.
+    if (idsAceptados.length > 0) {
+      socket.setTimeout(TIEMPO_INACTIVIDAD_MS)
+      socket.once('timeout', () => socket.destroy())
+    }
     if (idsAceptados.length === 0) terminarLote()
   }
 

@@ -14,6 +14,8 @@ let ventana: BrowserWindow | null = null
 let servidorActivo = false
 // Ofertas esperando que el usuario decida (por id de transferencia)
 const ofertasPendientes = new Map<string, (decision: DecisionUsuario) => void>()
+// Notificaciones abiertas por lote, para cerrarlas si el usuario responde desde la ventana
+const notificacionesAbiertas = new Map<string, () => void>()
 
 function crearVentana(): void {
   ventana = new BrowserWindow({
@@ -52,22 +54,34 @@ function preguntarAlUsuario(oferta: OfertaLote, idsExistentes: string[]): Promis
     // Si la app está en segundo plano, también avisamos con una notificación del sistema.
     // Desde la notificación se acepta TODO el lote (los repetidos se renombran).
     if (!ventana?.isFocused()) {
-      notificarArchivoEntrante(
+      const cerrar = notificarArchivoEntrante(
         oferta,
         (aceptado) =>
           resolverOferta(oferta.idLote, {
             idsAceptados: aceptado ? oferta.archivos.map((a) => a.id) : [],
             accionConflicto: 'renombrar'
           }),
-        () => ventana?.show()
+        () => {
+          ventana?.show()
+          ventana?.focus()
+        }
       )
+      notificacionesAbiertas.set(oferta.idLote, cerrar)
     }
   })
 }
 
+// Vale solo la PRIMERA respuesta (ventana o notificación): después se borra y las demás no hacen nada.
 function resolverOferta(id: string, decision: DecisionUsuario): void {
-  ofertasPendientes.get(id)?.(decision)
+  const resolver = ofertasPendientes.get(id)
+  if (!resolver) return
+  resolver(decision)
   ofertasPendientes.delete(id)
+
+  // Cerramos la notificación (si quedó abierta) y le avisamos a la ventana que saque el diálogo
+  notificacionesAbiertas.get(id)?.()
+  notificacionesAbiertas.delete(id)
+  enviarAVista(CANALES.ofertaResuelta, id)
 }
 
 function iniciarServicios(): Descubrimiento {
@@ -125,6 +139,8 @@ function registrarIpc(descubrimiento: Descubrimiento): void {
   })
 
   ipcMain.handle(CANALES.cambiarAlias, (_e, alias: string) => cambiarAlias(alias))
+
+  ipcMain.handle(CANALES.agregarIp, (_e, ip: string) => descubrimiento.agregarIp(ip))
 }
 
 app.whenReady().then(() => {

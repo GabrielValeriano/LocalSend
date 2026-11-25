@@ -11,13 +11,15 @@ import { BotonOpcion } from '../components/BotonOpcion'
 import { VistaArchivo } from '../components/VistaArchivo'
 import { TarjetaDispositivo } from '../components/TarjetaDispositivo'
 import { AvisoWifi } from '../components/AvisoWifi'
+import { AgregarPorIp } from '../components/AgregarPorIp'
+import { FilaProgreso } from '../components/FilaProgreso'
 import { formatearBytes } from '../utils/formato'
 import { vibrarToque } from '../utils/vibracion'
 
 // Regla de los 3 toques: 1) elegir archivo  2) tocar dispositivo  3) confirmar
 export function Enviar() {
   const router = useRouter()
-  const { enWifi, dispositivos } = useServicios()
+  const { enWifi, dispositivos, envios, limpiarEnvios } = useServicios()
   const { archivos, elegirDocumentos, elegirDeGaleria, quitar, limpiar } = useSeleccion()
   const total = archivos.reduce((suma, a) => suma + a.tamano, 0)
   const { colorScheme } = useColorScheme()
@@ -72,7 +74,22 @@ export function Enviar() {
         {dispositivos.length > 0 && archivos.length === 0 && (
           <Text className="text-center text-sm text-muted-foreground">Primero elegí al menos un archivo.</Text>
         )}
+
+        {enWifi && <AgregarPorIp />}
       </View>
+
+      {/* Lo que mandaste queda acá aunque cambies de pantalla (lo recibido está en "Recibir") */}
+      {envios.length > 0 && (
+        <View className="gap-3">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-lg font-semibold">Enviados</Text>
+            <Pressable onPress={limpiarEnvios} hitSlop={8}>
+              <Text className="text-sm font-medium text-primary">Limpiar terminadas</Text>
+            </Pressable>
+          </View>
+          {envios.map((p) => <FilaProgreso key={p.idTransferencia} progreso={p} />)}
+        </View>
+      )}
     </ScrollView>
   )
 }

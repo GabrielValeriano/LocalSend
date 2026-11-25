@@ -2,16 +2,19 @@ import { useRef } from 'react'
 import { File, Loader } from 'lucide-react'
 import type { Dispositivo, ProgresoTransferencia } from '../compartido/tipos'
 import { api } from '../services/api'
+import type { ArchivoSeleccionado } from '../services/seleccion'
+import { formatearBytes } from '../utils/formato'
 import { BotonOpcion } from '../components/BotonOpcion'
 import { VistaArchivo } from '../components/VistaArchivo'
 import { TarjetaDispositivo } from '../components/TarjetaDispositivo'
 import { MonitorTransferencia } from '../components/MonitorTransferencia'
+import { AgregarPorIp } from '../components/AgregarPorIp'
 
 interface Props {
-  archivos: string[]
+  archivos: ArchivoSeleccionado[]
   dispositivos: Dispositivo[]
   transferencias: ProgresoTransferencia[]
-  alAgregar: (rutas: string[]) => void
+  alAgregar: (archivos: ArchivoSeleccionado[]) => void
   alQuitar: (ruta: string) => void
   alLimpiar: () => void
   alEnviar: (dispositivo: Dispositivo) => void
@@ -25,7 +28,7 @@ export function Enviar(props: Props) {
 
   function alElegir(): void {
     const elegidos = [...(input.current?.files ?? [])]
-    props.alAgregar(elegidos.map((archivo) => api.rutaDeArchivo(archivo)))
+    props.alAgregar(elegidos.map((archivo) => ({ ruta: api.rutaDeArchivo(archivo), tamano: archivo.size })))
     if (input.current) input.current.value = ''
   }
 
@@ -42,11 +45,11 @@ export function Enviar(props: Props) {
         {archivos.length > 0 && (
           <>
             <div className="seccion__titulo">
-              <span className="texto-suave">{archivos.length} {archivos.length === 1 ? 'archivo' : 'archivos'}</span>
+              <span className="texto-suave">{archivos.length} {archivos.length === 1 ? 'archivo' : 'archivos'} · {formatearBytes(archivos.reduce((s, a) => s + a.tamano, 0))}</span>
               <button className="boton-texto" onClick={props.alLimpiar}>Limpiar</button>
             </div>
             <div className="lista">
-              {archivos.map((ruta) => <VistaArchivo key={ruta} ruta={ruta} alQuitar={props.alQuitar} />)}
+              {archivos.map((a) => <VistaArchivo key={a.ruta} ruta={a.ruta} tamano={a.tamano} alQuitar={props.alQuitar} />)}
             </div>
           </>
         )}
@@ -70,9 +73,11 @@ export function Enviar(props: Props) {
         {dispositivos.length > 0 && archivos.length === 0 && (
           <p className="texto-suave">Primero elegí al menos un archivo.</p>
         )}
+
+        <AgregarPorIp />
       </section>
 
-      <MonitorTransferencia transferencias={transferencias} alLimpiar={props.alLimpiarTransferencias} />
+      <MonitorTransferencia titulo="Enviados" transferencias={transferencias} alLimpiar={props.alLimpiarTransferencias} />
     </div>
   )
 }

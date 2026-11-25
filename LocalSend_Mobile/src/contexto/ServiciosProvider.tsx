@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Alert } from 'react-native'
 import type { Beacon, Dispositivo, OfertaLote, ProgresoTransferencia } from '../compartido/tipos'
 import type { DecisionRecepcion } from '../transferencia/recibirArchivo'
 import { Descubrimiento } from '../red/descubrimiento'
@@ -24,9 +25,16 @@ interface Servicios {
   ofertaPendiente: OfertaPendiente | null
   carpetaRecibidos: string
   servidorActivo: boolean
+  ip: string | null
+  envios: ProgresoTransferencia[] // lo que se ENVIÓ, para la pantalla Enviar (no se pierde al cambiar de pantalla)
+  limpiarEnvios: () => void
+  recepciones: ProgresoTransferencia[] // lo que se está RECIBIENDO, para la pantalla Recibir
+  limpiarRecepciones: () => void
+  loteRecibiendo: string | null // cambia cuando empieza a llegar un lote nuevo
   cambiarCarpeta: () => Promise<void>
   actualizarProgreso: (progreso: ProgresoTransferencia) => void
   cambiarAlias: (alias: string) => Promise<void>
+  agregarIp: (ip: string) => void
 }
 
 const ContextoServicios = createContext<Servicios | null>(null)
@@ -46,11 +54,19 @@ export function ServiciosProvider({ children }: { children: ReactNode }) {
   const carpeta = useRef<Directory | null>(null)
   const [carpetaRecibidos, setCarpetaRecibidos] = useState('Sin elegir')
   const [servidorActivo, setServidorActivo] = useState(false)
+  const [ip, setIp] = useState<string | null>(null)
+  const [envios, setEnvios] = useState<Record<string, ProgresoTransferencia>>({})
+  const [recepciones, setRecepciones] = useState<Record<string, ProgresoTransferencia>>({})
+  const [loteRecibiendo, setLoteRecibiendo] = useState<string | null>(null)
+  const lotesAvisados = useRef(new Set<string>()) // una sola alerta por lote
 
   useEffect(() => {
     cargarAjustes().then(setAjustes)
     obtenerCarpetaGuardada().then(actualizarCarpeta)
-    return escucharCambiosDeWifi(setEnWifi)
+    return escucharCambiosDeWifi((hayWifi, nuevaIp) => {
+      setEnWifi(hayWifi)
+      setIp(nuevaIp)
+    })
   }, [])
 
   // Solo escaneamos con Wi-Fi. Si se corta, paramos; si vuelve, retomamos solos.
@@ -98,6 +114,20 @@ export function ServiciosProvider({ children }: { children: ReactNode }) {
 
   function actualizarProgreso(nuevo: ProgresoTransferencia): void {
     setProgreso(nuevo)
+
+    if (nuevo.direccion === 'envio') {
+      setEnvios((anteriores) => ({ ...anteriores, [nuevo.idTransferencia]: nuevo }))
+    }
+
+    if (nuevo.direccion === 'recepcion') {
+      setRecepciones((anteriores) => {
+        // El primer aviso de un lote nuevo lleva al usuario a la pantalla Recibir
+        if (!Object.values(anteriores).some((r) => r.idLote === nuevo.idLote)) setLoteRecibiendo(nuevo.idLote)
+        return { ...anteriores, [nuevo.idTransferencia]: nuevo }
+      })
+    }
+
+    if (nuevo.estado === 'error') avisarInterrupcion(nuevo)
     const enCurso = nuevo.estado === 'enviando' || nuevo.estado === 'recibiendo'
 
     if (enCurso) {
@@ -111,6 +141,34 @@ export function ServiciosProvider({ children }: { children: ReactNode }) {
     else vibrarError()
   }
 
+  // Alerta cuando una transferencia se corta (por ejemplo, alguien se desconectó del Wi-Fi)
+  function avisarInterrupcion(progreso: ProgresoTransferencia): void {
+    if (lotesAvisados.current.has(progreso.idLote)) return
+    lotesAvisados.current.add(progreso.idLote)
+    const accion = progreso.direccion === 'envio' ? 'el envío de' : 'la recepción de'
+    Alert.alert(
+      'Se interrumpió la transferencia',
+      `Se cortó ${accion} "${progreso.nombre}".\n\n${progreso.mensajeError ?? ''}\n\nEl archivo incompleto se borró.`
+    )
+  }
+
+  function limpiarEnvios(): void {
+    setEnvios((anteriores) =>
+      Object.fromEntries(Object.entries(anteriores).filter(([, e]) => e.estado === 'enviando' || e.estado === 'esperando'))
+    )
+  }
+
+  function limpiarRecepciones(): void {
+    setRecepciones((anteriores) =>
+      Object.fromEntries(Object.entries(anteriores).filter(([, r]) => r.estado === 'recibiendo'))
+    )
+  }
+
+  // Para equipos en otra subred: les mandamos el beacon directo a su IP
+  function agregarIp(ip: string): void {
+    descubrimiento.current?.agregarIp(ip)
+  }
+
   async function cambiarAlias(alias: string): Promise<void> {
     if (!ajustes || !alias.trim()) return
     const nuevos = await guardarAlias(ajustes, alias)
@@ -122,7 +180,9 @@ export function ServiciosProvider({ children }: { children: ReactNode }) {
     <ContextoServicios.Provider
       value={{
         ajustes, enWifi, dispositivos, progreso, ofertaPendiente: ofertas[0] ?? null,
-        carpetaRecibidos, servidorActivo, cambiarCarpeta, actualizarProgreso, cambiarAlias
+        carpetaRecibidos, servidorActivo, cambiarCarpeta,
+        recepciones: Object.values(recepciones), limpiarRecepciones, loteRecibiendo,
+        ip, envios: Object.values(envios), limpiarEnvios, actualizarProgreso, cambiarAlias, agregarIp
       }}
     >
       {children}

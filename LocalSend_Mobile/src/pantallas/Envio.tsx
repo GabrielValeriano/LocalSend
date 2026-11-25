@@ -15,7 +15,7 @@ export function Envio() {
   const router = useRouter()
   const { idDestino } = useLocalSearchParams<{ idDestino: string }>()
   const { ajustes, dispositivos, actualizarProgreso } = useServicios()
-  const { archivos, limpiar } = useSeleccion()
+  const { archivos } = useSeleccion()
 
   const [progresos, setProgresos] = useState<Record<string, ProgresoTransferencia>>({}) // por uri
   const [etapa, setEtapa] = useState<Etapa>('enviando')
@@ -51,8 +51,9 @@ export function Envio() {
     setEtapa(terminados.current.size === archivos.length ? 'terminado' : 'fallo')
   }
 
+  // La selección NO se borra: así se puede volver a enviar a otro dispositivo.
+  // Se quita con la X o con "Limpiar" en la pantalla Enviar.
   function terminar(): void {
-    limpiar()
     router.back()
   }
 

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BarraPestanas, type Seccion } from '../components/BarraPestanas'
+import { useServicios } from '../contexto/ServiciosProvider'
 import { Recibir } from './Recibir'
 import { Enviar } from './Enviar'
 import { Ajustes } from './Ajustes'
@@ -11,6 +12,12 @@ import { Ajustes } from './Ajustes'
 export function Principal() {
   const [seccion, setSeccion] = useState<Seccion>('recibir')
   const margenes = useSafeAreaInsets()
+  const { loteRecibiendo } = useServicios()
+
+  // Cuando empieza a llegar un lote, mostramos "Recibir", que es donde está su progreso
+  useEffect(() => {
+    if (loteRecibiendo) setSeccion('recibir')
+  }, [loteRecibiendo])
 
   return (
     <View style={{ paddingTop: margenes.top }} className="flex-1 bg-background">

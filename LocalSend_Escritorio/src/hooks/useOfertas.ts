@@ -12,7 +12,15 @@ export function useOfertas() {
   const [pendientes, setPendientes] = useState<OfertaPendiente[]>([])
 
   useEffect(() => {
-    return api.alRecibirOferta((nueva) => setPendientes((anteriores) => [...anteriores, nueva]))
+    const dejarDeEscuchar = api.alRecibirOferta((nueva) => setPendientes((anteriores) => [...anteriores, nueva]))
+    // Si se respondió desde la notificación del sistema, sacamos el diálogo de la ventana
+    const dejarDeEscucharResueltas = api.alResolverOferta((idLote) =>
+      setPendientes((anteriores) => anteriores.filter((p) => p.oferta.idLote !== idLote))
+    )
+    return () => {
+      dejarDeEscuchar()
+      dejarDeEscucharResueltas()
+    }
   }, [])
 
   function responder(idLote: string, idsAceptados: string[], accionConflicto?: AccionConflicto): void {

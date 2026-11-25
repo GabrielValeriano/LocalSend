@@ -22,6 +22,7 @@ const api = {
     ipcRenderer.invoke(CANALES.responderOferta, id, decision),
   elegirCarpeta: (): Promise<string | null> => ipcRenderer.invoke(CANALES.elegirCarpeta),
   cambiarAlias: (alias: string) => ipcRenderer.invoke(CANALES.cambiarAlias, alias),
+  agregarIp: (ip: string) => ipcRenderer.invoke(CANALES.agregarIp, ip),
 
   // Con contextIsolation, File.path ya no existe: así obtenemos la ruta real del archivo arrastrado
   rutaDeArchivo: (archivo: File): string => webUtils.getPathForFile(archivo),
@@ -29,7 +30,8 @@ const api = {
   alCambiarDispositivos: (cb: (lista: Dispositivo[]) => void) => escuchar(CANALES.dispositivosActualizados, cb),
   alCambiarProgreso: (cb: (p: ProgresoTransferencia) => void) => escuchar(CANALES.progresoActualizado, cb),
   alRecibirOferta: (cb: (d: { oferta: OfertaLote; idsExistentes: string[] }) => void) => escuchar(CANALES.ofertaEntrante, cb),
-  alCambiarServidor: (cb: (activo: boolean) => void) => escuchar(CANALES.estadoServidor, cb)
+  alCambiarServidor: (cb: (activo: boolean) => void) => escuchar(CANALES.estadoServidor, cb),
+  alResolverOferta: (cb: (idLote: string) => void) => escuchar(CANALES.ofertaResuelta, cb)
 }
 
 contextBridge.exposeInMainWorld('api', api)

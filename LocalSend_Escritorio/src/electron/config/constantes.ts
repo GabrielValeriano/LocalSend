@@ -14,3 +14,7 @@ export const TAMANO_CHUNK = 256 * 1024
 
 export const INTERVALO_PROGRESO_MS = 200 // cada cuánto avisamos el progreso a la vista
 export const TIEMPO_ESPERA_RESPUESTA_MS = 60_000
+
+// Si una transferencia pasa este tiempo sin mover ni un byte, la damos por cortada.
+// Hace falta porque si se cae el Wi-Fi, TCP no siempre avisa: el socket queda "colgado" para siempre.
+export const TIEMPO_INACTIVIDAD_MS = 10_000

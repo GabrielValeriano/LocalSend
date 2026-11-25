@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
+import { File } from 'expo-file-system'
 import type { ArchivoElegido } from '../transferencia/enviarArchivo'
 import { pedirPermisoGaleria } from '../services/permisos'
 import { tipoMimeFinal } from '../compartido/tiposMime'
@@ -29,7 +30,7 @@ export function useSeleccion() {
     agregar(resultado.assets.map((a) => ({
       uri: a.uri,
       nombre: a.name,
-      tamano: a.size ?? 0,
+      tamano: pesoReal(a.uri, a.size),
       tipoMime: tipoMimeFinal(a.mimeType ?? undefined, a.name)
     })))
   }
@@ -48,7 +49,7 @@ export function useSeleccion() {
     agregar(resultado.assets.map((a) => ({
       uri: a.uri,
       nombre: a.fileName ?? `archivo-${Date.now()}.jpg`,
-      tamano: a.fileSize ?? 0,
+      tamano: pesoReal(a.uri, a.fileSize),
       tipoMime: tipoMimeFinal(a.mimeType ?? undefined, a.fileName ?? '.jpg')
     })))
   }
@@ -62,4 +63,15 @@ export function useSeleccion() {
   }
 
   return { archivos, elegirDocumentos, elegirDeGaleria, quitar, limpiar }
+}
+
+// Algunos selectores no informan el peso (o lo informan en 0). Si falta, lo leemos del archivo.
+// Antes quedaba en 0 y la oferta decía "0 B": el otro no podía recibirlo.
+function pesoReal(uri: string, informado?: number | null): number {
+  if (informado) return informado
+  try {
+    return new File(uri).size ?? 0
+  } catch {
+    return 0
+  }
 }

@@ -15,3 +15,7 @@ export const INTERVALO_PROGRESO_MS = 250
 export const TIEMPO_ESPERA_RESPUESTA_MS = 60_000
 
 export const NOMBRE_CARPETA_RECIBIDOS = 'LocalSend'
+
+// Si una transferencia pasa este tiempo sin mover ni un byte, la damos por cortada.
+// Hace falta porque si se cae el Wi-Fi, TCP no siempre avisa: el socket queda "colgado".
+export const TIEMPO_INACTIVIDAD_MS = 10_000

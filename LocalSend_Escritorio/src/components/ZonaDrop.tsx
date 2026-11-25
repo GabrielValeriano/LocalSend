@@ -1,9 +1,10 @@
 import { useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { Upload } from 'lucide-react'
 import { api } from '../services/api'
+import type { ArchivoSeleccionado } from '../services/seleccion'
 
 interface Props {
-  alSoltarArchivos: (rutas: string[]) => void
+  alSoltarArchivos: (archivos: ArchivoSeleccionado[]) => void
   children: ReactNode
 }
 
@@ -28,8 +29,11 @@ export function ZonaDrop({ alSoltarArchivos, children }: Props) {
     e.preventDefault()
     contador.current = 0
     setArrastrando(false)
-    const rutas = [...e.dataTransfer.files].map((archivo) => api.rutaDeArchivo(archivo))
-    if (rutas.length) alSoltarArchivos(rutas)
+    const soltados = [...e.dataTransfer.files].map((archivo) => ({
+      ruta: api.rutaDeArchivo(archivo),
+      tamano: archivo.size
+    }))
+    if (soltados.length) alSoltarArchivos(soltados)
   }
 
   return (

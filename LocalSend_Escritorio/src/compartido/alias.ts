@@ -22,3 +22,9 @@ export function generarAlias(): string {
 export function generarId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
+
+// "10.56.5.72" -> true. Sirve para validar lo que escriben en "Agregar por IP".
+export function esIpValida(texto: string): boolean {
+  const partes = texto.trim().split('.')
+  return partes.length === 4 && partes.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255)
+}

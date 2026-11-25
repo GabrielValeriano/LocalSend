@@ -14,17 +14,18 @@ const ESTADOS: Record<EstadoTransferencia, { texto: string; icono?: LucideIcon; 
 }
 
 interface Props {
+  titulo: string
   transferencias: ProgresoTransferencia[]
   alLimpiar: () => void
 }
 
-export function MonitorTransferencia({ transferencias, alLimpiar }: Props) {
+export function MonitorTransferencia({ titulo, transferencias, alLimpiar }: Props) {
   if (transferencias.length === 0) return null
 
   return (
     <section className="seccion">
       <div className="seccion__titulo">
-        <h2>Transferencias</h2>
+        <h2>{titulo}</h2>
         <button className="boton-texto" onClick={alLimpiar}>Limpiar terminadas</button>
       </div>
       <div className="lista">

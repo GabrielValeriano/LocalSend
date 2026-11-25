@@ -19,6 +19,10 @@ type AlCambiarLista = (dispositivos: Dispositivo[]) => void
 export class Descubrimiento {
   private socket = dgram.createSocket({ type: 'udp4', reuseAddr: true })
   private dispositivos = new Map<string, Dispositivo>()
+  // IPs a las que también mandamos el beacon directo. El broadcast NO cruza routers,
+  // así que si los equipos están en subredes distintas (ej: 10.56.2.x y 10.56.5.x)
+  // solo se encuentran si uno escribe la IP del otro ("Agregar por IP").
+  private ipsDirectas = new Set<string>()
   private temporizadores: NodeJS.Timeout[] = []
 
   constructor(
@@ -49,15 +53,25 @@ export class Descubrimiento {
     return [...this.dispositivos.values()]
   }
 
+  agregarIp(ip: string): void {
+    this.ipsDirectas.add(ip.trim())
+    this.enviarBeacon() // avisamos enseguida, sin esperar los 2 segundos
+  }
+
   private enviarBeacon(): void {
     const mensaje = Buffer.from(JSON.stringify(this.obtenerMiBeacon()))
     this.socket.send(mensaje, PUERTO_UDP, IP_BROADCAST)
+    // Además, directo (unicast) a cada IP conocida: así llega aunque esté en otra subred
+    this.ipsDirectas.forEach((ip) => this.socket.send(mensaje, PUERTO_UDP, ip))
   }
 
   private procesarBeacon(mensaje: Buffer, ip: string): void {
     const beacon = leerBeacon(mensaje)
     if (!beacon) return
     if (beacon.id === this.obtenerMiBeacon().id) return // es nuestro propio beacon
+
+    // Recordamos su IP: si nos encontró por IP directa, así le contestamos y nos ve también
+    this.ipsDirectas.add(ip)
 
     const anterior = this.dispositivos.get(beacon.id)
     this.dispositivos.set(beacon.id, { ...beacon, ip, ultimaVez: Date.now() })

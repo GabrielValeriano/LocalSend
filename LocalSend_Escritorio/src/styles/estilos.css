@@ -211,3 +211,10 @@ input:focus { outline: 2px solid hsl(var(--ring)); outline-offset: -1px; }
 .segmentos { display: flex; gap: 6px; background: hsl(var(--background)); padding: 4px; border-radius: 999px; }
 .segmentos__opcion { display: flex; align-items: center; gap: 6px; background: none; color: hsl(var(--muted-foreground)); padding: 7px 16px; }
 .segmentos__opcion--elegida { background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); font-weight: 600; }
+
+/* Agregar por IP (plan B si el otro está en otra subred) */
+.agregar-ip { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid hsl(var(--border)); }
+
+/* Progreso de lo recibido, debajo del logo en la pantalla Recibir */
+.recibir__monitor { width: min(720px, 100%); margin-top: 24px; text-align: left; }
+.recibir__monitor:empty { display: none; }
